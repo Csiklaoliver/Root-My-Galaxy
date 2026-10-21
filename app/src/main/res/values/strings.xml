@@ -5,7 +5,7 @@
     <string name="nav_history">History</string>
     <string name="nav_settings">Settings</string>
     <string name="install_confirm_title">Install KernelSU?</string>
-    <string name="install_confirm_body">The app will verify the support profile, then download and run the exploit and KernelSU payload from GitHub.</string>
+    <string name="install_confirm_body">EXPERIMENTAL / UNTESTED ON DEVICE: This can crash your phone or cause data loss. This is not a validated root release. The app will verify the exact firmware, download the forked payload, then run a kernel exploit.</string>
     <string name="action_confirm">Confirm</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_close">Close</string>
@@ -178,4 +178,9 @@
         <item quantity="one">This run and its log will be permanently removed.</item>
         <item quantity="other">These runs and their logs will be permanently removed.</item>
     </plurals>
+    <string name="shizuku_preflight_title">Shizuku access check</string>
+    <string name="shizuku_preflight_body">Read identity and permission information without running the root payload.</string>
+    <string name="shizuku_preflight_run">Check Shizuku access</string>
+    <string name="shizuku_preflight_running">Checking access…</string>
+    <string name="shizuku_preflight_copy">Copy results</string>
 </resources>

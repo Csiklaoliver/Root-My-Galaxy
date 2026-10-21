@@ -22,8 +22,8 @@ const val ROOT_MY_GALAXY_URL = "https://github.com/BuSung-dev/Root-My-Galaxy"
 
 object AppUpdater {
 
-    private const val GITHUB_API = "https://api.github.com/repos/BuSung-dev/Root-My-Galaxy"
-    private const val RELEASES_PAGE = "$ROOT_MY_GALAXY_URL/releases/latest"
+    private const val GITHUB_API = "https://api.github.com/repos/Csiklaoliver/Root-My-Galaxy"
+    private const val RELEASES_PAGE = "https://github.com/Csiklaoliver/Root-My-Galaxy/releases"
 
     suspend fun fetchLatestRelease(): UpdateInfo? = withContext(Dispatchers.IO) {
         try {

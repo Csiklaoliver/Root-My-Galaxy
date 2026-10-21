@@ -101,7 +101,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         mutableHistory.value = historyStore.load()
         discoveryJob?.cancel()
         discoveryJob = viewModelScope.launch(Dispatchers.IO) {
-            val probe = NativeProbe.run()
+            val probe = "[*] Probe scope: app process (independent of Shizuku mode)\n${NativeProbe.run()}"
             if (detectInstalled()) {
                 mutableState.value = InstallUiState(
                     phase = InstallPhase.Installed,
@@ -171,6 +171,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
             // exploit and the KernelSU staging steps.
             activeRunShizuku = AppPreferences.shizukuMode(app)
             try {
+                appendLog("[*] Selected execution mode: ${if (shizukuEnabled()) "Shizuku" else "app process"}")
                 if (shizukuEnabled()) {
                     appendLog(app.getString(R.string.log_shizuku_prepare))
                     if (!ShizukuController.isRunning() && !ShizukuController.pingUntilRunning()) {
@@ -195,7 +196,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
                 appendLog(app.getString(R.string.log_download_verified))
 
                 setPhase(InstallPhase.Exploiting, app.getString(R.string.status_exploit_running))
-                executeExploit(payloads.exploit)
+                executeExploit(payloads.exploit, profile.requiresFreshP0Session)
 
                 setPhase(InstallPhase.LoadingKernelSu, app.getString(R.string.status_ksu_loading))
                 installKernelSu(payloads)
@@ -213,7 +214,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private suspend fun executeExploit(payload: File) {
+    private suspend fun executeExploit(payload: File, requiresFreshP0Session: Boolean) {
         val shizuku = shizukuEnabled()
         val logFile = if (shizuku) File(SHIZUKU_LOG_PATH) else File(app.filesDir, "exploit.log")
         if (shizuku) {
@@ -226,12 +227,13 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
             require(helper.canExecute()) { app.getString(R.string.error_helper_unavailable) }
         }
         val logPrefix = mutableState.value.log
-        val bootToken = currentBootToken()
+        // A fresh-P0 profile cannot reuse an address discovered in another process.
+        val bootToken = if (requiresFreshP0Session) null else currentBootToken()
         val process = if (shizuku) {
             val stagedPayload = shizukuStage(payload, SHIZUKU_PAYLOAD_PATH, "755")
             ShizukuController.exec(
                 arrayOf("/system/bin/sh", "-c", "true"),
-                shizukuEnvironment(bootToken, stagedPayload.absolutePath, helper.absolutePath),
+                shizukuEnvironment(bootToken, stagedPayload.absolutePath, helper.absolutePath, requiresFreshP0Session),
             )
         } else {
             val processBuilder = ProcessBuilder(
@@ -242,7 +244,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
                 logFile.absolutePath,
             ).redirectErrorStream(true)
             processBuilder.environment().apply {
-                put("EXPLOIT_ATTEMPTS", EXPLOIT_ATTEMPTS)
+                put("EXPLOIT_ATTEMPTS", if (requiresFreshP0Session) "1" else EXPLOIT_ATTEMPTS)
                 put("P0_ATTEMPT_TIMEOUT_SEC", P0_ATTEMPT_TIMEOUT_SEC)
                 put("EXPLOIT_ATTEMPT_TIMEOUT_SEC", EXPLOIT_ATTEMPT_TIMEOUT_SEC)
                 cachedP0Offset(bootToken)?.let { put(P0_OFFSET_ENV, it) }
@@ -438,8 +440,9 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         bootToken: String?,
         payloadPath: String,
         helperPath: String,
+        requiresFreshP0Session: Boolean,
     ): Array<String> = buildList {
-        add("EXPLOIT_ATTEMPTS=$EXPLOIT_ATTEMPTS")
+        add("EXPLOIT_ATTEMPTS=${if (requiresFreshP0Session) "1" else EXPLOIT_ATTEMPTS}")
         add("P0_ATTEMPT_TIMEOUT_SEC=$P0_ATTEMPT_TIMEOUT_SEC")
         add("EXPLOIT_ATTEMPT_TIMEOUT_SEC=$EXPLOIT_ATTEMPT_TIMEOUT_SEC")
         add("CVE43499_ROOT_HELPER=$helperPath")

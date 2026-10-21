@@ -1563,6 +1563,7 @@ private fun SettingsPage(
             }
         }
         item { SectionLabel(stringResource(R.string.advanced)) }
+        item { ShizukuPreflightCard() }
         item {
             SettingsSwitchCard(
                 icon = Icons.Rounded.Memory,
