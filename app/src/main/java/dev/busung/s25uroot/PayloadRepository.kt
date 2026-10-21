@@ -7,6 +7,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 import org.json.JSONObject
 
 data class VerifiedPayloads(
@@ -34,6 +35,9 @@ class PayloadRepository(private val context: Context) {
         ?: error(context.getString(R.string.repo_profile_missing, profileId))
 
     fun download(profile: TargetProfile, onProgress: (String) -> Unit): VerifiedPayloads {
+        if (profile.profileId == EXPERIMENTAL_PROFILE_ID) {
+            requireExperimentalFirmware()
+        }
         val directory = File(context.filesDir, "payloads/${profile.profileId}").apply { mkdirs() }
         val exploit = downloadArtifact(
             profile.exploit,
@@ -47,6 +51,10 @@ class PayloadRepository(private val context: Context) {
             context.getString(R.string.artifact_kernelsu),
             onProgress,
         )
+        if (profile.profileId == EXPERIMENTAL_PROFILE_ID) {
+            verifySha256(exploit, EXPERIMENTAL_EXPLOIT_SHA256)
+            verifySha256(kernelSu, EXPERIMENTAL_KERNELSU_SHA256)
+        }
         Os.chmod(exploit.absolutePath, 0b100100100)
         Os.chmod(kernelSu.absolutePath, 0b100100100)
         return VerifiedPayloads(profile, exploit, kernelSu)
@@ -88,6 +96,36 @@ class PayloadRepository(private val context: Context) {
         }
         onProgress(context.getString(R.string.repo_verified, label))
         return destination
+    }
+
+    private fun requireExperimentalFirmware() {
+        // The manifest normally checks only model + 3-part kernel version.
+        // This experimental payload was calibrated for precisely one firmware.
+        val device = DeviceSnapshot.current()
+        require(
+            device.model == "SM-S928B" &&
+                device.androidRelease == "17" &&
+                device.buildId.endsWith("S928BXXU6EZIF") &&
+                device.kernelRelease == "6.1.162-android14-11-34343818-abS928BXXU6EZIF"
+        ) {
+            "Experimental payload blocked: this is not the exact S928BXXU6EZIF build."
+        }
+    }
+
+    private fun verifySha256(file: File, expected: String) {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val actual = digest.digest().joinToString("") { "%02x".format(it) }
+        require(actual.equals(expected, ignoreCase = true)) {
+            "Experimental payload hash mismatch: ${file.name}"
+        }
     }
 
     private fun resolveMainCommit(): String {
@@ -137,10 +175,18 @@ class PayloadRepository(private val context: Context) {
 
     companion object {
         private const val COMMIT_API_URL =
-            "https://api.github.com/repos/BuSung-dev/Root-My-Galaxy-Payloads/git/ref/heads/main"
+            "https://api.github.com/repos/Csiklaoliver/Root-My-Galaxy-Payloads/git/ref/heads/experimental-s24u-oneui9"
         private const val RAW_REPOSITORY =
-            "https://raw.githubusercontent.com/BuSung-dev/Root-My-Galaxy-Payloads"
-        private const val MUTABLE_RAW_PREFIX = "$RAW_REPOSITORY/main/"
+            "https://raw.githubusercontent.com/Csiklaoliver/Root-My-Galaxy-Payloads"
+        // The original manifest lists BuSung-dev/main URLs; redirect the paths
+        // to the pinned commit on this fork instead.
+        private const val MUTABLE_RAW_PREFIX =
+            "https://raw.githubusercontent.com/BuSung-dev/Root-My-Galaxy-Payloads/main/"
+        private const val EXPERIMENTAL_PROFILE_ID = "e3q-S928BXXU6EZIF"
+        private const val EXPERIMENTAL_EXPLOIT_SHA256 =
+            "5215587861d4a6ae2ddb9d7437dee3d71bdb0910b0542f789e4478a866ac6be6"
+        private const val EXPERIMENTAL_KERNELSU_SHA256 =
+            "51881cdd113adb80cf00e18669ebb8a8fa4af00c27ae4a9a88ad7fdc704c00fe"
         private const val MAX_COMMIT_RESPONSE_BYTES = 16 * 1024
         private const val MAX_MANIFEST_BYTES = 256 * 1024
     }
