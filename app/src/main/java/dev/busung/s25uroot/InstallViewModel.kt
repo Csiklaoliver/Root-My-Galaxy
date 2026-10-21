@@ -101,7 +101,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
         mutableHistory.value = historyStore.load()
         discoveryJob?.cancel()
         discoveryJob = viewModelScope.launch(Dispatchers.IO) {
-            val probe = NativeProbe.run()
+            val probe = "[*] Probe scope: app process (independent of Shizuku mode)\n${NativeProbe.run()}"
             if (detectInstalled()) {
                 mutableState.value = InstallUiState(
                     phase = InstallPhase.Installed,
@@ -171,6 +171,7 @@ class InstallViewModel(application: Application) : AndroidViewModel(application)
             // exploit and the KernelSU staging steps.
             activeRunShizuku = AppPreferences.shizukuMode(app)
             try {
+                appendLog("[*] Selected execution mode: ${if (shizukuEnabled()) "Shizuku" else "app process"}")
                 if (shizukuEnabled()) {
                     appendLog(app.getString(R.string.log_shizuku_prepare))
                     if (!ShizukuController.isRunning() && !ShizukuController.pingUntilRunning()) {

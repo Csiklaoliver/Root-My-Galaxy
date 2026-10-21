@@ -4,7 +4,7 @@
 
 ## Why check this?
 
-The first full failure log (2026-10-21) ran in `u:r:untrusted_app_34`. The initial probe reported `tracefs_control=denied errno=13`, then the native payload wrote `slide tracefs pre-oracle unavailable; using physical scan` and ultimately failed with `p0 pipe gate hits=0 changed=0` and `p0 physical pipe reclaim miss`.
+The first failure log (2026-10-21) included an app probe with `u:r:untrusted_app_34` and `tracefs_control=denied errno=13`. That probe always runs in the app process, independently of Shizuku mode, so its context alone does not identify the later payload's execution context. The native payload then wrote `slide tracefs pre-oracle unavailable; using physical scan` and ultimately failed with `p0 pipe gate hits=0 changed=0` and `p0 physical pipe reclaim miss`.
 
 The proposed payload has a separate `slide_tracefs_resolve_base()` path before trying the physical method, while its developer explicitly marks `SLIDE_TRACEFS_EVENT_ID = 106` **not verified on device**.
 
@@ -54,4 +54,36 @@ done
 
 This does **not** write to these tracing controls. It checks reported permissions only, and even a writable result does not establish that the exploit works. If any path reports not writable, do not assume tracefs discovery can proceed. The payload's `slide_tracefs_resolve_base()` also reads `per_cpu/cpu*/trace_pipe_raw`; permission or content requirements can still fail after these checks.
 
-**Static code check:** the APK's Shizuku path runs a shell command with an LD_PRELOAD native constructor in a Shizuku-launched process. No Shizuku-transport coding defect was identified in this review. No memory-offset, kernel-race, or payload binary changes were made.
+## Independent check inside the experimental APK
+
+In a build containing the 2026-10-21 source-review changes:
+
+1. Start Shizuku.
+2. Open the experimental app's **Settings > Shizuku access check**.
+3. Tap **Check Shizuku access** and grant the app Shizuku access if requested.
+4. Tap **Copy results** to collect the report.
+
+This action does not call the installer and does not require pressing Install.
+The script is `app/src/main/assets/shizuku-preflight.sh`. It reads identity,
+context, build properties, kernel release, and the event ID. It checks metadata
+for the required control and raw trace files without opening the trace buffers.
+Even a readable `trace_pipe_raw` is not consumed by this check.
+
+For an ADB check from a local checkout, the same script can be streamed to the
+device without installing a new APK:
+
+```sh
+adb shell < app/src/main/assets/shizuku-preflight.sh
+```
+
+ADB and this app's Shizuku launch are separate transports. The in-app check is
+the direct test of the app's remote-command API. For an adb-started Shizuku,
+UID `2000` and a shell SELinux context are the expected observations, not root.
+
+**Static code check:** the installer's Shizuku path runs a shell command with an
+LD_PRELOAD native constructor in a Shizuku-launched process. A separate
+short-command capture helper could deadlock on stderr and now has concurrent
+readers and a deadline; that does not explain the previous payload verification
+failure. See [the source review](S24U-EZIF-SOURCE-REVIEW.md) for the native
+manifest/build mismatch and the limits of the app probe. No native payload was
+changed or run by these diagnostic changes.

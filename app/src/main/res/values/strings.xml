@@ -178,4 +178,9 @@
         <item quantity="one">This run and its log will be permanently removed.</item>
         <item quantity="other">These runs and their logs will be permanently removed.</item>
     </plurals>
+    <string name="shizuku_preflight_title">Shizuku access check</string>
+    <string name="shizuku_preflight_body">Read identity and permission information without running the root payload.</string>
+    <string name="shizuku_preflight_run">Check Shizuku access</string>
+    <string name="shizuku_preflight_running">Checking access…</string>
+    <string name="shizuku_preflight_copy">Copy results</string>
 </resources>

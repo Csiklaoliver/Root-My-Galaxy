@@ -72,19 +72,13 @@ object ShizukuController {
     }
 
     /**
-     * Runs a short command and returns its combined output. Used to read files the app
-     * process cannot access directly because SELinux confines app UIDs away from the
-     * shell-owned /data/local/tmp directory.
+     * Runs a short command with a deadline and bounded output. Both streams must be
+     * drained concurrently: reading stdout to EOF first can deadlock on a full stderr
+     * pipe. A nonzero command exit retains the existing empty-string result.
      */
     fun capture(cmd: Array<String>): String {
-        val process = exec(cmd)
-        return try {
-            val stdout = process.inputStream.bufferedReader().use { it.readText() }
-            val stderr = process.errorStream.bufferedReader().use { it.readText() }
-            if (process.waitFor() == 0) stdout + stderr else ""
-        } finally {
-            if (process.isAlive) process.destroy()
-        }
+        val result = captureProcessOutput(exec(cmd))
+        return if (result.code == 0) result.output else ""
     }
 
     fun writeFile(remotePath: String, mode: String, source: InputStream) {
