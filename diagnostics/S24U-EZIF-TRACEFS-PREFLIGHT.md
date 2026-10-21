@@ -36,3 +36,22 @@ The `cat` commands only read an event ID. They do **not** enable tracing, change
 ## Scope
 
 This is static investigation and a non-invasive prerequisite check, **not a root fix**. On-device validation of the new kernel payload is still pending. Don't retry or alter the exploit based only on this preflight. Relevant code paths are `src/slide_app.c`, `src/pipe.c`, and the provisional tracefs constants in the EZIF target header in the companion payload repository.
+
+## 2026-10-21 device result: event ID confirmed
+
+The owner ran the read-only event ID command via aShell with Shizuku and obtained `106`. This **confirms the provisional event number** on the device and that Shizuku's shell can read this path. It does **not** confirm write access or exploit viability.
+
+### Additional read-only Shizuku permission preflight
+
+In aShell (through Shizuku) run:
+
+```sh
+id
+for p in /sys/kernel/tracing/tracing_on /sys/kernel/tracing/events/sched/sched_blocked_reason/enable /sys/kernel/tracing/trace; do
+  if test -w "$p"; then echo "$p : appears writable"; else echo "$p : not writable"; fi
+done
+```
+
+This does **not** write to these tracing controls. It checks reported permissions only, and even a writable result does not establish that the exploit works. If any path reports not writable, do not assume tracefs discovery can proceed. The payload's `slide_tracefs_resolve_base()` also reads `per_cpu/cpu*/trace_pipe_raw`; permission or content requirements can still fail after these checks.
+
+**Static code check:** the APK's Shizuku path runs a shell command with an LD_PRELOAD native constructor in a Shizuku-launched process. No Shizuku-transport coding defect was identified in this review. No memory-offset, kernel-race, or payload binary changes were made.
