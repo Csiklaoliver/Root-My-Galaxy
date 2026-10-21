@@ -46,8 +46,8 @@ block both sides indefinitely. This helper is not the output reader used by the
 failed `executeExploit()` run, so this is not a diagnosis of that failure.
 
 The helper now drains both streams concurrently, closes unused stdin, limits kept
-output while continuing to drain it, enforces a ten-second deadline, and cleans up
-the process and streams. Its existing empty result for nonzero command exits is
+output while continuing to drain it, enforces a ten-second deadline through
+Shizuku's `waitForTimeout` RPC, and cleans up the process and streams. Its existing empty result for nonzero command exits is
 preserved. Regression tests cover full stderr/stdout pipes, output limits, stdin
 EOF, exit codes, and timeout cleanup.
 

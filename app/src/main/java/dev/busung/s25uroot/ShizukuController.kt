@@ -5,6 +5,7 @@ import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import moe.shizuku.server.IRemoteProcess
@@ -103,6 +104,8 @@ object ShizukuController {
         override fun getOutputStream(): OutputStream = output
         override fun getErrorStream(): InputStream = error
         override fun waitFor(): Int = remote.waitFor()
+        override fun waitFor(timeout: Long, unit: TimeUnit): Boolean =
+            remote.waitForTimeout(timeout, unit.toString())
         override fun exitValue(): Int = remote.exitValue()
 
         override fun destroy() {
