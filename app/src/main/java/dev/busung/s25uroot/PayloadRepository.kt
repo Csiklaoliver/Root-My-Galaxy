@@ -18,9 +18,15 @@ data class VerifiedPayloads(
 
 class PayloadRepository(private val context: Context) {
     fun loadTargets(): List<TargetProfile> {
+        // This custom build is intentionally restricted to the exact EZIF phone.
+        // Do not surface other device payloads from the experimental repository.
+        requireExperimentalFirmware()
         val commit = resolveMainCommit()
         val manifestBytes = downloadBytes(rawUrl(commit, "support/targets-v3.json"), MAX_MANIFEST_BYTES)
-        return SupportManifest.parse(manifestBytes).targets.map { profile -> profile.copy(
+        val target = SupportManifest.parse(manifestBytes).targets.singleOrNull {
+            it.profileId == EXPERIMENTAL_PROFILE_ID
+        } ?: error("The expected experimental EZIF profile is missing")
+        return listOf(target).map { profile -> profile.copy(
             exploit = profile.exploit.copy(url = pinArtifactUrl(profile.exploit.url, commit)),
             kernelSu = profile.kernelSu.copy(url = pinArtifactUrl(profile.kernelSu.url, commit)),
         ) }
