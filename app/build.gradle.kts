@@ -26,6 +26,14 @@ android {
         }
     }
 
+    buildTypes {
+        getByName("debug") {
+            // Install alongside an official build without a signing conflict.
+            applicationIdSuffix = ".experimental"
+            versionNameSuffix = "-s24u-ezif-experimental"
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
